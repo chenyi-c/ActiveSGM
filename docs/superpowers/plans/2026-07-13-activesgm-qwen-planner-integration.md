@@ -49,6 +49,6 @@
 **Files:**
 - Verify: repository tree and Git history.
 
-- [ ] Run a source-tree and forbidden-artifact scan.
-- [ ] Review `git diff --check`, `git status --short`, and the staged file list.
-- [ ] Commit the branch, push it to GitHub, merge it into `main`, and verify the resulting GitHub files and commit history.
+- [x] Run a source-tree and forbidden-artifact scan.
+- [x] Review `git diff --check`, `git status --short`, and the staged file list.
+- [x] Commit the branch, push it to GitHub, merge it into `main`, and verify the resulting GitHub files and commit history.
