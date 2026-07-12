@@ -1,0 +1,51 @@
+Qwen Top-3 Tie-Break Distance-Strict Analysis
+============================================
+
+Input:
+results/Replica/office0/ActiveSem/run_fake_llm_full_night_20260526_140049/splatam/llm_logs/qwen_tiebreak_top3_results.jsonl
+
+Purpose:
+Evaluate a safer Qwen-assisted planner strategy.
+Qwen is only called when the Top-1 and Top-2 weighted scores are close.
+Qwen can only choose from Top-3 candidates.
+A stricter post-filter accepts Qwen changes only when:
+- weighted_ratio >= 0.90
+- explore_ratio >= 0.80
+- distance_delta <= 0.0
+
+Original Top-3 Tie-Break result:
+total_decisions: 36
+tie_cases: 17
+qwen_called: 17
+qwen_valid: 17
+accepted_qwen_changes: 10
+fallback_count: 6
+invalid_count: 0
+exception_count: 0
+accepted_distance_lower: 5
+accepted_distance_higher: 5
+accepted_weighted_lower: 10
+accepted_explore_lower: 10
+
+Distance-strict post-filter result:
+total_decisions: 36
+tie_cases: 17
+qwen_called: 17
+original_accepted_qwen_changes: 10
+distance_strict_accepted_changes: 5
+distance_strict_rejected_from_original_accepts: 5
+
+Accepted distance-strict cases:
+1. record=2, step=30, orig=27, qwen=32, weighted_ratio=0.9152, explore_ratio=0.9132, distance_delta=-0.4142
+2. record=6, step=90, orig=35, qwen=30, weighted_ratio=0.9451, explore_ratio=0.9388, distance_delta=-1.0000
+3. record=8, step=127, orig=18, qwen=16, weighted_ratio=0.9880, explore_ratio=0.9398, distance_delta=-0.2361
+4. record=11, step=178, orig=8, qwen=14, weighted_ratio=0.9215, explore_ratio=0.8144, distance_delta=-2.0000
+5. record=24, step=414, orig=77, qwen=26, weighted_ratio=0.9077, explore_ratio=0.8940, distance_delta=-0.5402
+
+Conclusion:
+Direct Qwen reranking is too risky because it often selects lower weighted_score and lower explore_ig candidates.
+Top-3 Tie-Break with distance-strict guard is more suitable for online testing:
+- Qwen is only used in uncertain cases.
+- Accepted changes preserve at least 90% weighted_score and 80% explore_ig.
+- Accepted changes do not increase distance.
+This strategy is the current best candidate for online log-only integration.

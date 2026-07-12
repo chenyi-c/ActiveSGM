@@ -11,9 +11,9 @@ scene_name = scenes[0]
 
 map_every = 1
 keyframe_every = 5
-mapping_window_size = 4
-tracking_iters = 5
-mapping_iters = 5
+mapping_window_size = 32
+tracking_iters = 10
+mapping_iters = 15
 
 group_name = "Replica"
 run_name = f"{scene_name}_{seed}"
@@ -49,10 +49,10 @@ config = dict(
         basedir="./data/Replica",
         gradslam_data_cfg="./configs/data/replica.yaml",
         sequence=scene_name,
-        desired_image_height=340,
-        desired_image_width=600,
-        tracking_image_height=340,
-        tracking_image_width=600,
+        desired_image_height=680,
+        desired_image_width=1200,
+        tracking_image_height=680,
+        tracking_image_width=1200,
         densification_image_height=340,
         densification_image_width=600,
         start=0,
@@ -93,7 +93,7 @@ config = dict(
         loss_weights=dict(
             im=0.5,
             depth=1.0,
-            seman=0.02,
+            seman=0.05,
         ),
         lrs=dict(
             means3D=0.0001,

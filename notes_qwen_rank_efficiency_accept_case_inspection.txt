@@ -1,0 +1,47 @@
+Qwen Rank-Efficiency Accepted Case Inspection
+=============================================
+
+Source run:
+JobID 510729
+Mode: qwen_rank_efficiency_logonly
+Result directory:
+results/Replica/office0/ActiveSem/run_qwen_rank_efficiency_logonly_20260605_060010
+
+Purpose:
+Inspect the four hypothetical rank-efficiency accepted Qwen decisions before any apply-v2 run.
+
+Accepted cases:
+1. step=90, original=35, qwen=30
+   score_drop=0.0526
+   distance_saving=1.0000
+   stable_eff_ratio=1.4080
+   Interpretation: strong distance-rescue candidate.
+
+2. step=178, original=8, qwen=14
+   score_drop=0.0890
+   distance_saving=2.0000
+   stable_eff_ratio=2.4202
+   Interpretation: strong distance-rescue candidate, but score_drop is close to the 0.09 threshold and qwen distance is 0, so it needs caution.
+
+3. step=414, original=78, qwen=27
+   score_drop=0.0566
+   distance_saving=0.5402
+   stable_eff_ratio=1.1367
+   Interpretation: borderline candidate. It only slightly exceeds the distance_saving threshold and Qwen's reason contains numerical inconsistency.
+
+4. step=502, original=3, qwen=21
+   score_drop=0.0563
+   distance_saving=0.8452
+   stable_eff_ratio=1.1317
+   Interpretation: medium-strength candidate.
+
+Conclusion:
+The current rank-efficiency guard identifies useful candidates, but it is still slightly permissive.
+For apply-v2, do not directly accept all four cases.
+A more conservative apply-v2 guard should require:
+- selected_weighted_rank <= 3
+- score_drop_ratio <= 0.09
+- distance_saving >= 0.8
+- stable_efficiency_ratio >= 1.1
+
+This would likely preserve steps 90, 178, and 502 while rejecting the borderline step 414.

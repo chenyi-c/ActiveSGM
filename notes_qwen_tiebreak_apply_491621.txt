@@ -1,0 +1,80 @@
+Qwen Top-3 Tie-Break Apply Run
+==============================
+
+JobID: 491621
+State: COMPLETED
+ExitCode: 0:0
+Elapsed: 02:37:26
+
+Branch:
+feature_qwen25_15b_planner_v1
+
+Mode:
+ACTIVE_SGM_LLM_MODE=qwen_tiebreak_top3_distance_strict
+ACTIVE_SGM_LLM_APPLY=1
+
+Result directory:
+results/Replica/office0/ActiveSem/run_qwen_tiebreak_apply_20260530_130614
+
+Configuration:
+QWEN_PLANNER_DTYPE=float32
+QWEN_PLANNER_TOP_N=3
+QWEN_PLANNER_TIE_GAP=0.10
+QWEN_PLANNER_MIN_WEIGHT_KEEP=0.90
+QWEN_PLANNER_MIN_EXPLORE_KEEP=0.80
+QWEN_PLANNER_MAX_DISTANCE_INCREASE=0.0
+QWEN_PLANNER_MAX_NEW_TOKENS=96
+
+Final metrics:
+Final Average ATE RMSE: 120.37 cm
+Average PSNR: 27.68
+Average Depth RMSE: 0.83 cm
+Average Depth L1: 0.83 cm
+Average MS-SSIM: 0.973
+Average LPIPS: 0.088
+semantic eval frames: 0 / dataset 2000
+
+Online LLM apply statistics:
+planner decision records: 42
+qwen_called: 22
+tie_cases: 22
+guard_accept_qwen: 6
+apply_enabled: 42
+apply_used: 6
+final_changed: 6
+
+Changed decisions:
+1. step=30,  original=27, final=32, weighted_ratio=0.9152, explore_ratio=0.9133, distance_delta=-0.4142
+2. step=42,  original=26, final=29, weighted_ratio=0.9758, explore_ratio=0.9651, distance_delta=-1.0000
+3. step=58,  original=24, final=23, weighted_ratio=0.9079, explore_ratio=0.8979, distance_delta=0.0000
+4. step=381, original=63, final=39, weighted_ratio=0.9543, explore_ratio=0.9653, distance_delta=-0.1088
+5. step=535, original=23, final=16, weighted_ratio=0.9156, explore_ratio=1.0076, distance_delta=-2.3820
+6. step=581, original=4,  final=19, weighted_ratio=0.9274, explore_ratio=0.9510, distance_delta=-2.1742
+
+Comparison with log-only run:
+Log-only metrics:
+ATE RMSE: 122.69 cm
+PSNR: 27.75
+Depth RMSE: 0.53 cm
+Depth L1: 0.53 cm
+MS-SSIM: 0.974
+LPIPS: 0.092
+
+Apply metrics:
+ATE RMSE: 120.37 cm
+PSNR: 27.68
+Depth RMSE: 0.83 cm
+Depth L1: 0.83 cm
+MS-SSIM: 0.973
+LPIPS: 0.088
+
+Conclusion:
+The Qwen apply mode successfully changed the ActiveSGM trajectory in 6 planner decisions.
+The result is mixed:
+- ATE RMSE improved.
+- LPIPS improved.
+- PSNR and MS-SSIM slightly decreased.
+- Depth RMSE / Depth L1 became worse.
+
+This confirms that the Qwen-guided planner can affect the final trajectory and reconstruction metrics.
+Further work should analyze the changed decision steps and refine the guard policy to preserve depth quality.

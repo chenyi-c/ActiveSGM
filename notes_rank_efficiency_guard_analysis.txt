@@ -1,0 +1,45 @@
+Rank-Efficiency Guard Analysis
+==============================
+
+Purpose:
+Add derived planner metrics for Qwen decision evaluation and test whether they can better identify useful LLM-assisted next-view changes.
+
+New derived metrics:
+- weighted_rank
+- explore_rank
+- distance_rank
+- distance_saving_vs_original
+- score_drop_ratio_vs_original
+- stable_efficiency_ratio
+
+Main candidate policy:
+rank_eff_v1_dist05_score09
+
+Rules:
+- selected_weighted_rank <= 3
+- score_drop_ratio_vs_original <= 0.09
+- distance_saving_vs_original >= 0.5
+- stable_efficiency_ratio >= 1.0
+
+Offline result:
+For apply-v1 changed steps:
+- Accepted: [42, 535, 581]
+- Rejected: [30, 58, 381]
+
+For strict-v1 changed steps:
+- Accepted: [42, 381, 415, 472]
+- Rejected: [30]
+
+Interpretation:
+The policy rejects suspicious or weak changes in apply-v1:
+- step 58 has no distance saving and lower exploration efficiency.
+- step 381 has very small distance saving and almost no efficiency gain.
+
+The policy preserves stronger distance-rescue changes:
+- step 42
+- step 535
+- step 581
+
+Conclusion:
+Rank-efficiency guard is more targeted than simply tightening the original guard.
+It supports a next-stage transition from LLM-assisted planner to LLM-primary planner with richer planner-derived metrics and fallback safety.

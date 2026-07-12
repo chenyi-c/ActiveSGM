@@ -1,0 +1,30 @@
+JobID: 474606
+Branch: feature_qwen25_15b_planner_v1
+Commit: 324919a3 feat: add fake LLM reranker interface
+Config: configs/Replica/office0/ActiveSem_LLMLog.py
+Script: run_office0_fake_llm_full_night.sh
+Result dir: results/Replica/office0/ActiveSem/run_fake_llm_full_night_20260526_140049
+
+Purpose:
+Run full ActiveSGM office0 with fake LLM reranker interface.
+The fake LLM records llm_selected_id / llm_reason / llm_fallback but does not change next_visit.
+
+Status:
+COMPLETED, ExitCode 0:0, Elapsed 02:01:14.
+
+Metrics:
+Stage 0:
+ATE RMSE 103.82 cm, PSNR 27.23, Depth RMSE 2.09 cm, Depth L1 2.09 cm, MS-SSIM 0.953, LPIPS 0.135.
+
+Stage 1:
+ATE RMSE 113.69 cm, PSNR 27.59, Depth RMSE 0.76 cm, Depth L1 0.76 cm, MS-SSIM 0.968, LPIPS 0.116.
+
+Final:
+ATE RMSE 122.69 cm, PSNR 27.77, Depth RMSE 0.52 cm, Depth L1 0.52 cm, MS-SSIM 0.975, LPIPS 0.089.
+
+LLM log:
+results/Replica/office0/ActiveSem/run_fake_llm_full_night_20260526_140049/splatam/llm_logs/planner_semantic_candidates.jsonl
+Records: 36
+
+Note:
+semantic eval frames remain 0 / 2000. GT semantic evaluation is still not enabled/completed.

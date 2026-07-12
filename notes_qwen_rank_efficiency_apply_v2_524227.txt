@@ -1,0 +1,87 @@
+Qwen Rank-Efficiency Apply-v2 Run
+=================================
+
+JobID:
+524227
+
+State:
+COMPLETED
+
+ExitCode:
+0:0
+
+Elapsed:
+02:53:31
+
+Mode:
+ACTIVE_SGM_LLM_MODE=qwen_rank_efficiency_apply_v2
+ACTIVE_SGM_LLM_APPLY=1
+
+Result directory:
+results/Replica/office0/ActiveSem/run_qwen_rank_efficiency_apply_v2_20260605_233557
+
+Configuration:
+QWEN_RANK_EFF_MAX_WEIGHTED_RANK=3
+QWEN_RANK_EFF_MAX_SCORE_DROP=0.09
+QWEN_RANK_EFF_MIN_DISTANCE_SAVING=0.8
+QWEN_RANK_EFF_MIN_STABLE_EFF_RATIO=1.1
+
+Final metrics:
+Final Average ATE RMSE: 130.40 cm
+Average PSNR: 27.71
+Average Depth RMSE: 0.61 cm
+Average Depth L1: 0.61 cm
+Average MS-SSIM: 0.972
+Average LPIPS: 0.094
+semantic eval frames: 0 / dataset 2000
+
+LLM statistics:
+records: 39
+qwen_called: 19
+tie_cases: 19
+guard_accept_qwen: 3
+apply_used: 3
+final_changed: 3
+
+Changed decisions:
+1. step=90, original=35, final=30
+   score_drop=0.0494
+   distance_saving=1.0000
+   stable_eff_ratio=1.4080
+   Interpretation: expected strong candidate from rank-efficiency log-only analysis.
+
+2. step=529, original=6, final=10
+   score_drop=0.0762
+   distance_saving=0.9828
+   stable_eff_ratio=1.1346
+   Interpretation: new accepted candidate caused by downstream trajectory divergence.
+
+3. step=552, original=4, final=8
+   score_drop=0.0719
+   distance_saving=3.8406
+   stable_eff_ratio=3.9908
+   Interpretation: numerically strong candidate, but Qwen reason still contains inconsistency.
+
+Comparison with enhanced log-only:
+Enhanced log-only:
+ATE RMSE: 122.69 cm
+PSNR: 27.75
+Depth RMSE: 0.53 cm
+MS-SSIM: 0.974
+LPIPS: 0.092
+
+Apply-v2:
+ATE RMSE: 130.40 cm
+PSNR: 27.71
+Depth RMSE: 0.61 cm
+MS-SSIM: 0.972
+LPIPS: 0.094
+
+Conclusion:
+Apply-v2 successfully changed the ActiveSGM trajectory under a conservative rank-efficiency guard.
+However, final global metrics are worse than enhanced log-only, especially ATE and LPIPS.
+This result should be treated as a mixed or negative apply ablation.
+
+Main bottleneck:
+Local candidate-level benefit does not reliably translate into global trajectory-level improvement.
+The next stage should move from candidate-level guard to trajectory-aware, graph-aware, and global-local LLM planning.

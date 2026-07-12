@@ -1,0 +1,100 @@
+ActiveSGM + Qwen Planner Experiment Summary
+===========================================
+
+Repository:
+ /data/run01/scxj889/projects/ActiveSGM_qwen_planner
+
+Branch:
+ feature_qwen25_15b_planner_v1
+
+Core research framing:
+ LLM-assisted, metric-guarded next-best-view planner for ActiveSGM.
+ The LLM does not replace the original ActiveSGM planner.
+ Instead, ActiveSGM first scores candidates, Qwen only performs Top-3 tie-breaking in uncertain cases, and a hard numeric guard decides whether Qwen's recommendation can be applied.
+
+Main pipeline:
+ 1. ActiveSGM computes candidate scores.
+ 2. Candidate information is logged: id, distance, explore_ig, semantic_entropy, weighted_score.
+ 3. If Top-1 and Top-2 weighted scores are close, Qwen is called.
+ 4. Qwen must choose from Top-3 candidates.
+ 5. Guard constraints:
+    - weighted_ratio >= 0.90
+    - explore_ratio >= 0.80
+    - distance_delta <= 0.0
+ 6. In log-only mode, Qwen's decision is recorded but not applied.
+ 7. In apply mode, if guard_accept_qwen=True and ACTIVE_SGM_LLM_APPLY=1, next_visit is changed to guarded_final_id.
+
+Important negative result:
+ Direct Qwen reranking is unsafe.
+ Offline Top-K direct rerank changed 30/36 decisions, but all changed choices had lower weighted_score and lower explore_ig than the original ActiveSGM choice.
+ This motivates metric-guarded LLM assistance.
+
+Online log-only run:
+ JobID: 489943
+ Result dir:
+ results/Replica/office0/ActiveSem/run_qwen_tiebreak_logonly_20260529_192548
+
+ Metrics:
+ ATE RMSE: 122.69 cm
+ PSNR: 27.75
+ Depth RMSE: 0.53 cm
+ Depth L1: 0.53 cm
+ MS-SSIM: 0.974
+ LPIPS: 0.092
+
+ LLM statistics:
+ records: 36
+ qwen_called: 21
+ tie_cases: 21
+ guard_accept_qwen: 5
+ final_changed: 0
+
+Apply run:
+ JobID: 491621
+ Result dir:
+ results/Replica/office0/ActiveSem/run_qwen_tiebreak_apply_20260530_130614
+
+ Metrics:
+ ATE RMSE: 120.37 cm
+ PSNR: 27.68
+ Depth RMSE: 0.83 cm
+ Depth L1: 0.83 cm
+ MS-SSIM: 0.973
+ LPIPS: 0.088
+
+ LLM apply statistics:
+ records: 42
+ qwen_called: 22
+ tie_cases: 22
+ guard_accept_qwen: 6
+ apply_enabled: 42
+ apply_used: 6
+ final_changed: 6
+
+Changed decisions in apply run:
+ 1. step=30,  original=27, final=32
+ 2. step=42,  original=26, final=29
+ 3. step=58,  original=24, final=23
+ 4. step=381, original=63, final=39
+ 5. step=535, original=23, final=16
+ 6. step=581, original=4,  final=19
+
+Comparison:
+ ATE improved: 122.69 -> 120.37 cm
+ LPIPS improved: 0.092 -> 0.088
+ PSNR slightly decreased: 27.75 -> 27.68
+ MS-SSIM slightly decreased: 0.974 -> 0.973
+ Depth RMSE worsened: 0.53 -> 0.83 cm
+ Depth L1 worsened: 0.53 -> 0.83 cm
+
+Conclusion:
+ Qwen apply mode successfully changed the ActiveSGM trajectory.
+ The result is mixed, not a full improvement.
+ The correct claim is:
+  Qwen-assisted metric-guarded planning can influence trajectory and partially improve ATE/LPIPS, but current guard policy may harm depth quality.
+
+Future improvement:
+ 1. Use distance_delta < 0 instead of <= 0.
+ 2. Increase explore_ratio threshold from 0.80 to 0.90.
+ 3. Reject distance-unchanged lower-score changes such as step 58.
+ 4. Analyze changed steps before running another full GPU experiment.

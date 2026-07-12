@@ -14,7 +14,7 @@ location_idx = 0
 ##################################################
 dirs = dict(
     output_dir = "data/replica_sim/{}/{}/{}/{:02}".format(
-                                            scene_name, 
+                                            scene_name,
                                             split_name,
                                             left_right,
                                             location_idx
@@ -58,12 +58,12 @@ camera = dict(
     pinhole = dict(
         enable = True,
         cam_type = ['color', 'depth', 'semantic'],
-        resolution_hw = [340, 600],
+        resolution_hw = [680, 1200],
         orientation_type = 'horizontal', # [skybox, horizontal, horizontal+UpDown]
         horizontal = dict(
             num_rot = 1
         ),
-        fov = (fov(340, 600), fov(600, 600)), # h, w
+        fov = (fov(680, 600), fov(1200, 600)), # h, w
     ),
     equirectangular = dict(
         enable = True,
@@ -86,6 +86,5 @@ sim_output = dict(
     frame_suffix = '.png',
     depth_png_scale = 6553.5,
     clear_old_output = True,
-    force_clear = True, 
+    force_clear = True,
 )
-

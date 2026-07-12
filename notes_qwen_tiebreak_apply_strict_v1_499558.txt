@@ -1,0 +1,71 @@
+Qwen Top-3 Tie-Break Apply Strict v1 Run
+========================================
+
+JobID: 499558
+State: COMPLETED
+Mode:
+ACTIVE_SGM_LLM_MODE=qwen_tiebreak_top3_distance_strict
+ACTIVE_SGM_LLM_APPLY=1
+
+Result directory:
+results/Replica/office0/ActiveSem/run_qwen_tiebreak_apply_strict_v1_20260602_152234
+
+Configuration:
+QWEN_PLANNER_MIN_WEIGHT_KEEP=0.90
+QWEN_PLANNER_MIN_EXPLORE_KEEP=0.90
+QWEN_PLANNER_MAX_DISTANCE_INCREASE=-0.000001
+
+Purpose:
+Evaluate a stricter guard policy after apply v1 showed mixed results.
+The goal was to reject suspicious distance-unchanged changes such as step 58.
+
+Final metrics:
+Final Average ATE RMSE: 135.43 cm
+Average PSNR: 27.52
+Average Depth RMSE: 1.19 cm
+Average Depth L1: 1.19 cm
+Average MS-SSIM: 0.968
+Average LPIPS: 0.100
+semantic eval frames: 0 / dataset 2000
+
+Online LLM apply statistics:
+planner decision records: 35
+qwen_called: 23
+guard_accept_qwen: 5
+apply_used: 5
+final_changed: 5
+
+Changed decisions:
+1. step=30,  original=27,  final=32
+2. step=42,  original=26,  final=29
+3. step=381, original=160, final=28
+4. step=415, original=96,  final=94
+5. step=472, original=3,   final=41
+
+Comparison:
+Log-only:
+ATE RMSE: 122.69 cm
+PSNR: 27.75
+Depth RMSE: 0.53 cm
+MS-SSIM: 0.974
+LPIPS: 0.092
+
+Apply v1:
+ATE RMSE: 120.37 cm
+PSNR: 27.68
+Depth RMSE: 0.83 cm
+MS-SSIM: 0.973
+LPIPS: 0.088
+
+Strict v1:
+ATE RMSE: 135.43 cm
+PSNR: 27.52
+Depth RMSE: 1.19 cm
+MS-SSIM: 0.968
+LPIPS: 0.100
+
+Conclusion:
+Strict v1 successfully filtered out step 58, but overall metrics became worse.
+This shows that simply tightening guard thresholds does not necessarily improve ActiveSGM trajectory quality.
+Because ActiveSGM is an online exploration system, changing or removing one decision can alter later candidate pools and downstream trajectory behavior.
+Strict v1 should be treated as a negative ablation result rather than the next best method.

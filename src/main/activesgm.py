@@ -65,7 +65,7 @@ if __name__ == "__main__":
     log_savedir = os.path.join(main_cfg.dirs.result_dir, "logger")
     os.makedirs(log_savedir, exist_ok=True)
     logger = SummaryWriter(f'{log_savedir}')
-    
+
     ##################################################
     ### initialize simulator
     ##################################################
@@ -93,8 +93,6 @@ if __name__ == "__main__":
     ### Run ActiveLang
     ##################################################
     ## load initial pose and convert from RUB to RDF (splatam)) ##
-    # 规划器位姿采用 Habitat/OpenGL 风格的 RUB 坐标系，而 SplaTAM 使用 RDF。
-    # 主循环同时维护两套坐标，并在模块边界显式做转换。
     c2w_slam = planner.load_init_pose() # RUB
     c2w_slam[:3, 1] *= -1
     c2w_slam[:3, 2] *= -1 # RDF
@@ -104,7 +102,6 @@ if __name__ == "__main__":
     ## initialize exploration map in slam ##
     T_sim2slam = torch.inverse(c2w_slam_init) # RDF # transformation that takes sim-world points to slam-world-origin (i.e. first camera)
     if main_cfg.slam.enable_active_planning:
-        # 探索地图定义在 SLAM 坐标系中，并以第 0 帧作为坐标锚点初始化。
         slam.init_exploration_map(T_sim2slam)
 
     planner.init_data(T_sim2slam)
@@ -128,23 +125,22 @@ if __name__ == "__main__":
             c2w_slam = planner.update_pose(c2w_slam, i).to(c2w_slam.device) # RUB
             c2w_sim = c2w_slam.cpu().numpy().copy() # RUB
             ## convert back to RDF (splatam) ##
-            c2w_slam[:3, 1] *= -1 
+            c2w_slam[:3, 1] *= -1
             c2w_slam[:3, 2] *= -1
         elif main_cfg.planner.method in ["active_lang", "active_gs","active_gsv2"]:
             ## convert back to RUB (habitat) ##
             c2w_sim = c2w_slam.cpu().numpy().copy() # RDF
-            c2w_sim[:3, 1] *= -1 
+            c2w_sim[:3, 1] *= -1
             c2w_sim[:3, 2] *= -1 # RUB
         else:
             raise NotImplementedError
 
         ## convert to relative pose (w.r.t first pose) ##
         c2w_slam_rel = torch.inverse(c2w_slam_init) @ c2w_slam # RDF
-        
+
         ##################################################
         ### Simulation
         ##################################################
-        # 仿真器始终接收 RUB 位姿；输出随后交给 SLAM 和规划器消费。
         timer.start("Simulation", "General")
         sim_out = sim.simulate(c2w_sim)
         timer.end("Simulation")
@@ -156,10 +152,6 @@ if __name__ == "__main__":
         ##################################################
         ### Mapping optimization
         ##################################################
-        # 建图策略与阶段绑定：
-        # - exploration：正常关键帧/地图更新
-        # - planning：尽量避免加入噪声关键帧
-        # - post_refinement：可选地强制使用全局关键帧做精修
         ### get timer state ###
         if main_cfg.slam.enable_active_planning:
             planner_state = f"{planner.planning_state}_{planner.exploration_stage}" if planner.planning_state == "exploration" else planner.planning_state
@@ -185,16 +177,15 @@ if __name__ == "__main__":
         ## save data for comprehensive visualization
         #################################################
         if main_cfg.visualizer.vis_rgbd:
-            im, rastered_depth, valid_depth_mask, seen = slam.render(c2w_slam_rel)
+            im, rastered_depth, _ = slam.render(c2w_slam_rel)
             im = im.permute(1, 2, 0)
             rastered_depth = rastered_depth[0]
             visualizer.visualize_rgbd_w_render(color, depth, im, rastered_depth, main_cfg.visualizer.vis_rgbd_max_depth)
             visualizer.main(slam, planner, color, depth,im, rastered_depth, c2w_slam)
-        
+
         ##################################################
         ### Active Planning
         ##################################################
-        # 规划器先在 SLAM 坐标系中给出下一相机位姿，再映射回世界位姿。
         if main_cfg.slam.enable_active_planning:
             if i == 0:
                 ### update REFINE POOL ###
@@ -205,7 +196,7 @@ if __name__ == "__main__":
             timer.start(planner_state, "General")
 
             c2w_slam_rel = planner.main(
-                c2w_slam_rel, 
+                c2w_slam_rel,
                 slam)
             c2w_slam = c2w_slam_init @ c2w_slam_rel
 
@@ -216,7 +207,7 @@ if __name__ == "__main__":
                     slam.config['mapping']['num_iters'] = main_cfg.slam.refine_map_iter
                 else:
                     slam.config['mapping']['num_iters'] = map_iter_og
-                    
+
             elif planner.planning_state == "done":
                 break
 
@@ -231,7 +222,7 @@ if __name__ == "__main__":
             #         igs.append(val['ig'].detach().cpu().numpy())
             #     igs = np.asarray(igs)
             #     eval_dir_suffix = f"step_{i:04}"
-            #     eval_dir = slam.eval_dir + "_" + eval_dir_suffix 
+            #     eval_dir = slam.eval_dir + "_" + eval_dir_suffix
             #     os.makedirs(eval_dir, exist_ok=True)
             #     np.save(os.path.join(eval_dir, "information.npy"), igs)
 
