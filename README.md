@@ -1,172 +1,96 @@
-# ActiveSGM: Semantics-driven Active Mapping
+# ActiveSGM + Qwen Planner
 
-> This repository is a learning and engineering adaptation of
-> [lly00412/ActiveSGM](https://github.com/lly00412/ActiveSGM), released under
-> the MIT License. It retains the upstream license and attribution. The
-> additional runtime wrappers, low-resource configurations, and compatibility
-> adjustments in this repository are maintained by `chenyi-c`.
+This repository extends ActiveSGM with an LLM-assisted, metric-guarded
+next-best-view planner. It is a stage-one research and engineering release:
+the baseline ActiveSGM pipeline remains responsible for candidate scoring, and
+Qwen is only used to resolve uncertain Top-3 choices under explicit numeric
+constraints.
 
-This is the Python implementation of the ActiveSGM with SplaTAM backbone. (**Understanding while Exploring:
-Semantics-driven Active Mapping**. Published at Neurips 2025) [[Paper](https://arxiv.org/abs/2506.00225)]
+## Project Evolution
 
-## Environment
+1. **ActiveSGM baseline**: semantics-driven active mapping with a SplaTAM
+   backbone.
+2. **Qwen Planner extension**: candidate logging, constrained Top-3 selection,
+   offline analysis, log-only evaluation, and guarded application mode.
+3. **Current stage**: software-side validation on Replica `office0`; hardware
+   integration and drone deployment are future work.
 
-### Installation
+## Guarded Planner
 
-We provide scripts to create the conda environment, and recommend running ActiveSGM with Python 3.8 and CUDA 11.7 or CUDA 12.1. Please modify the scripts as needed to match your GPU and CUDA version.
+The extension does not let the LLM replace the original planner.
 
-```
-# Download
-git clone --recursive https://github.com/lly00412/ActiveSGM
+1. ActiveSGM computes candidate metrics and weighted scores.
+2. When the leading candidates are close, Qwen selects only from the Top-3.
+3. A hard guard checks score ratio, exploration ratio, and distance change.
+4. In **log-only** mode, the Qwen decision is recorded but never applied.
+5. In **apply** mode, a guard-approved decision can replace `next_visit` only
+   when the explicit application switch is enabled.
 
-# Build conda environment
-cd ActiveSGM
-bash scripts/installation/conda_env/build_sem.sh
-```
-### Build cuda tool for semantic rendering
+This design keeps the LLM contribution inspectable and makes it possible to
+compare a logged baseline with a guarded trajectory change.
 
-#### dense-channel-rasterization
-```
-# clone from github
-git clone -b liyan/dev --single-branch https://github.com/lly00412/semantic-gaussians.git third_parties/channel_rasterization
+## Stage-One Evidence
 
-# go to the submodule directory
-cd ./third_parties/channel_rasterization/channel-rasterization/cuda_rasterizer
+The public experiment summary compares a Qwen log-only run with a guarded apply
+run on Replica `office0`.
 
-# modify config.h base on number of class
-NUM_CHANNELS {num of class} // Default 3
+| Run | ATE RMSE | PSNR | Depth RMSE | LPIPS | Trajectory changes |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Qwen log-only | 122.69 cm | 27.75 | 0.53 cm | 0.092 | 0 |
+| Guarded apply | 120.37 cm | 27.68 | 0.83 cm | 0.088 | 6 |
 
-# install the cuda tool
-cd ../..
-python setup.py install
-pip install .
-```
+The result is **mixed rather than a full improvement**: the guarded apply run
+changed the path and improved ATE/LPIPS in this comparison, while depth metrics
+worsened. The current claim is therefore limited to demonstrating that
+metric-guarded LLM assistance can influence the planning trajectory; improving
+the guard policy remains open work.
 
-#### sparse-channel-rasterization
-```
-# clone from github
-git clone -b hairong/sparse_ver --single-branch https://github.com/lly00412/semantic-gaussians.git third_parties/sparse_channel_rasterization
+## Selected Outputs
 
-# go to the submodule directory
-cd ./third_parties/sparse_channel_rasterizationn/sparse-channel-rasterizationncuda_rasterizer
+Each image shows an `office0` observation with RGB, depth-related rendering,
+and semantic views. These are selected presentation assets, not a full result
+dump.
 
-# modify config.h base on number of class and number of logits to keep
-NUM_CHANNELS {num of class} // Default Replica: 102 MP3D:41
-TOP_K_LOGITS_CHANNELS {number of logits to keep} // Default 16  
+| Log-only reference | Guarded apply at a corresponding early step | Guarded apply at a later changed-decision region |
+| --- | --- | --- |
+| ![Log-only office0 step 39](docs/figures/office0_logonly_step_39.png) | ![Guarded apply office0 step 39](docs/figures/office0_guarded_apply_step_39.png) | ![Guarded apply office0 step 539](docs/figures/office0_guarded_apply_step_539.png) |
 
-# install the cuda tool
-cd ../..
-python setup.py install
-pip install .
-```
+More context, exact run statistics, limitations, and next steps are in
+[docs/PROJECT_PROGRESS.md](docs/PROJECT_PROGRESS.md).
 
-## Data Preparation
+## Repository Contents
 
-### Dataset download
-We run the experiments on [Replica](https://github.com/facebookresearch/Replica-Dataset/tree/main) and [Matterport3D](https://niessner.github.io/Matterport/)(MP3D) dataset using Habitat simulator, please follow the instruction of [ActiveGAMER](https://github.com/oppo-us-research/ActiveGAMER) to download these two datasets.
+- `src/`: ActiveSGM pipeline, Qwen planner, reranker, visualization, and data
+  interfaces.
+- `configs/`: Replica, NARUTO, and runtime configurations.
+- `scripts/`: installation and launch helpers.
+- `envs/`: dependency lists and Docker environment material.
+- `run_*.sh`, `test_*.sh`: focused stage-one run and unit-test entry points.
+- `analysis_*.py`, `offline_*.py`, `notes_*.txt`: offline analysis and research
+  records for the planner extension.
 
-### Semantic mesh filtering for Matterport3D
-We use Chamfer distance to remove floaters and generate clean semantic ground-truth meshes for MP3D scenes. Please run the following code before evaluation, and update the mesh file paths accordingly before running.```
-```
-python src/data/filter_mesh_mp3d.py
-```
+## Reproducibility Scope
 
-### Generate finetuning data for OneFormer
+This repository deliberately contains source code and compact documentation
+only. It does **not** redistribute third-party source trees, datasets, model
+weights, checkpoints, full experiment outputs, caches, logs, or local
+environments. See `envs/` and the run scripts for setup requirements. The
+baseline data preparation follows the original ActiveSGM/Habitat instructions.
 
-We provide fine-tuned OneFormer checkpoints for [Replica](https://huggingface.co/lly00412/oneformer-replica-finetune) and [MP3D](https://huggingface.co/lly00412/oneformer-mp3d-finetune). If you would like to run ActiveSGM on your own data, we also include configuration files and scripts for generating finetuning data.
+For a first baseline run, the repository also retains the lightweight framework
+wrappers under `scripts/framework/`.
 
-We use [generate_finetune_data.py](https://github.com/lly00412/ActiveSGM/blob/main/configs/Replica/generate_finetune_data.py) as the configuration to generate semantic observation via Habitat simulator.
-To finetune OneFormer, please run the following script:
-```
-# Modify the custom data folder before running
-bash scripts/finetune_mp3d_oneformer.sh
-```
+## Status and Next Work
 
-## Training
+Completed work includes planner integration, guarded decision logic, log-only
+and apply-mode scripts, offline analysis, and stage-one Replica `office0`
+evidence. Next work includes stricter guard tuning, more controlled experiments,
+environment migration, and second-stage integration with a drone platform.
 
-We train ActiveSGM on two NVIDIA RTX A6000 GPUs. 
-GPU 0 ("device") is used for keyframe mapping and path planning, 
-while GPU 1 ("semantic_device") handles the OneFormer interface and semantic rendering. 
-You can modify the "device" and "semantic_device" fields in the configuration files to assign these tasks to different GPUs as needed.
+## Attribution
 
-```
-# Run ActiveSGM on Replica
-bash scripts/activesgm/run_replica.sh {SCENE} {NUM_RUN} {EXP} {ENABLE_VIS} {GPU_ID}
-
-# Run ActiveSGM on Replica office0
-bash scripts/activesgm/run_replica.sh office0 1 ActiveSem 0 0,1
-
-# Run Splatam
-bash scripts/activesgm/run_replica.sh office0 1 predefine 0 0,1
-
-# Run SGS-SLAM
-bash scripts/activesgm/run_replica.sh office0 1 sgsslam 0 0,1
-```
-
-## Evaluation
-
-We evaluate ActiveSGM for 3D reconstruction, Semantic Segmentation and Novel View Synthesis.
-```
-# Evaluate 3D reconstruction
-bash scripts/evaluation/eval_replica_3d.sh office0 1 ActiveSem 0 0,1
-
-# Evaluate semantic segmentation
-bash scripts/evaluation/eval_replica_semantic.sh office0 1 ActiveSem 0 0 0 final
-
-# Evaluate novel view synthesis
-bash scripts/evaluation/eval_replica_nvs_result.sh office0 1 ActiveSem 0 0,1
-```
-
-## Citation
-
-```
-@inproceedings{chen2025understanding,
-  title={Understanding while Exploring: Semantics-driven Active Mapping},
-  author={Chen, Liyan and Zhan, Huangying and Yin, Hairong and Xu, Yi and Mordohai, Philippos},
-  booktitle={The Thirty-ninth Annual Conference on Neural Information Processing Systems},
-  year={2025}
-}
-```
-
-## Acknowledgement
-We sincerely thank the owners of the following open source projects, which are used by our released codes:
-[HabitatSim](https://github.com/facebookresearch/habitat-sim), 
-[ActiveGAMER](https://github.com/oppo-us-research/ActiveGAMER), 
-[OneFormer](https://github.com/SHI-Labs/OneFormer),
-[SplaTAM](https://github.com/spla-tam/SplaTAM),
-[Semantic Gaussians](https://github.com/sharinka0715/semantic-gaussians),
-[SGS-SLAM](https://github.com/ShuhongLL/SGS-SLAM).
-## Quick Start Framework (Stable)
-
-For a stable first run, we provide a lightweight framework wrapper:
-
-```bash
-# 1) Check runtime environment (GPU + key dependencies)
-bash scripts/framework/check_env.sh
-
-# 2) Dry run (validate config and runtime only)
-bash scripts/framework/run_sgm.sh office0 ActiveSem 0 1
-
-# 3) Real run (disable dry-run)
-bash scripts/framework/run_sgm.sh office0 ActiveSem 0 0
-```
-
-Arguments for `run_sgm.sh`:
-- `arg1`: scene, e.g. `office0`
-- `arg2`: experiment config name, e.g. `ActiveSem`
-- `arg3`: GPU ids passed to `CUDA_VISIBLE_DEVICES`, e.g. `0` or `0,1`
-- `arg4`: `1` for dry-run, `0` for actual run
-
-### Safe First Run (Recommended)
-
-If your machine is unstable with heavy CUDA extension builds, use the safe config first:
-
-```bash
-# Dry run
-bash scripts/framework/run_sgm_safe.sh office0 0 1
-
-# Real run
-bash scripts/framework/run_sgm_safe.sh office0 0 0
-```
-
-Note: prefer launching through the shell scripts above so the conda env is activated automatically.
+This repository is a learning and engineering adaptation of
+[lly00412/ActiveSGM](https://github.com/lly00412/ActiveSGM), which is released
+under the MIT License. The original project builds on HabitatSim, ActiveGAMER,
+OneFormer, SplaTAM, Semantic Gaussians, and SGS-SLAM. Their licenses and
+attribution remain applicable.

@@ -1,0 +1,41 @@
+Qwen Rank-Efficiency Enhanced Metrics Unit Test
+===============================================
+
+JobID:
+509688
+
+Mode:
+ACTIVE_SGM_LLM_MODE=qwen_rank_efficiency_logonly
+
+Purpose:
+Validate the enhanced-metrics Qwen log-only reranker before running full ActiveSGM online log-only.
+
+New enhanced metrics:
+- weighted_rank
+- explore_rank
+- distance_rank
+- distance_saving_vs_original
+- score_drop_ratio_vs_original
+- stable_efficiency_ratio_vs_original
+
+Result:
+QWEN_RANK_EFFICIENCY_UNIT_TEST_PASSED
+
+Observed behavior:
+- Qwen model loaded successfully.
+- tie_case: True
+- qwen_called: True
+- selected_candidate_id: 2
+- guarded_final_id: 0
+- guard_accept_qwen: False
+- rank_efficiency_guard_accept: False
+
+Important observation:
+Qwen returned valid JSON and used the enhanced-metrics prompt, but it selected candidate 2 instead of the more intuitively stronger candidate 1 in the synthetic case.
+The generated reason also showed numerical inconsistency.
+However, the rank-efficiency guard rejected the selected candidate because distance_saving_vs_original was below the threshold.
+
+Interpretation:
+The enhanced-metrics prompt works technically, but Qwen still requires deterministic safety filtering.
+This supports the staged research path:
+LLM-assisted planner -> LLM-primary planner with fallback -> possible LLM-only planner later.

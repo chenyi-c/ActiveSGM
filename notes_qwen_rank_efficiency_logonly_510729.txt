@@ -1,0 +1,52 @@
+Qwen Rank-Efficiency Enhanced Metrics Online Log-Only Run
+=========================================================
+
+JobID:
+510729
+
+Mode:
+ACTIVE_SGM_LLM_MODE=qwen_rank_efficiency_logonly
+
+Result directory:
+results/Replica/office0/ActiveSem/run_qwen_rank_efficiency_logonly_20260605_060010
+
+Purpose:
+Run ActiveSGM with enhanced-metrics Qwen rank-efficiency reranker in online log-only mode.
+Qwen sees derived planner metrics, but the trajectory is not changed.
+
+Final metrics:
+Final Average ATE RMSE: 122.69 cm
+Average PSNR: 27.75
+Average Depth RMSE: 0.53 cm
+Average Depth L1: 0.53 cm
+Average MS-SSIM: 0.974
+Average LPIPS: 0.092
+semantic eval frames: 0 / dataset 2000
+
+LLM statistics:
+records: 36
+qwen_called: 21
+tie_cases: 21
+guard_accept_qwen: 0
+apply_used: 0
+final_changed: 0
+mode: qwen_rank_efficiency_logonly
+
+Qwen behavior:
+qwen_selected_diff_from_original: 20
+hypothetical_rank_efficiency_accept: 4
+
+Hypothetical rank-efficiency accepted cases:
+1. step=90,  original=35, qwen=30, score_drop=0.0526, distance_saving=1.0000, stable_eff_ratio=1.4080
+2. step=178, original=8,  qwen=14, score_drop=0.0890, distance_saving=2.0000, stable_eff_ratio=2.4202
+3. step=414, original=78, qwen=27, score_drop=0.0566, distance_saving=0.5402, stable_eff_ratio=1.1367
+4. step=502, original=3,  qwen=21, score_drop=0.0563, distance_saving=0.8452, stable_eff_ratio=1.1317
+
+Important observation:
+The enhanced-metrics prompt works and Qwen is called online during real ActiveSGM decisions.
+The rank-efficiency guard identifies four hypothetical acceptable changes while preserving log-only safety.
+However, Qwen still produces numerically inconsistent reasons in several rejected cases, such as treating negative distance_saving or stable_efficiency_ratio below 1.0 as desirable.
+
+Conclusion:
+Enhanced metrics improve observability and provide a path toward LLM-primary planning, but Qwen still requires deterministic guard/fallback.
+The next step should be offline analysis of enhanced log-only decisions before any apply run.

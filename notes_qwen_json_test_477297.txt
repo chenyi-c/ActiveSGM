@@ -1,0 +1,31 @@
+JobID: 477297
+Branch: feature_qwen25_15b_planner_v1
+Base ActiveSGM environment: activegamer
+Qwen dependency overlay: /data/run01/scxj889/qwen_pydeps
+Model: /data/run01/scxj889/models/Qwen2.5-1.5B-Instruct
+Script: test_qwen_planner_json_v2.sh
+
+Purpose:
+Test whether Qwen2.5-1.5B-Instruct can load locally and return valid JSON for next-best-view candidate selection.
+
+Status:
+COMPLETED, ExitCode 0:0, Elapsed 00:03:26.
+
+Environment:
+Python: /data/home/scxj889/run/conda_envs/activegamer/bin/python
+Torch: 1.13.1+cu117
+Transformers: 4.45.2 from /data/run01/scxj889/qwen_pydeps
+GPU: RTX 4090
+
+Result:
+QWEN JSON TEST V2 PASSED.
+
+Raw response:
+{
+  "selected_candidate_id": 0,
+  "reason": "The first candidate has the lowest distance and highest weighted score, indicating the best fit for the next-best view."
+}
+
+Conclusion:
+Qwen can parse a candidate list and return a valid selected_candidate_id JSON object.
+The stable setup uses the activegamer environment with qwen_pydeps overlay and loads Qwen in float32.

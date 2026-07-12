@@ -1,0 +1,37 @@
+JobID: 479180
+Branch: feature_qwen25_15b_planner_v1
+Script: run_offline_qwen_rerank_topk.sh
+Python script: offline_qwen_rerank_llm_logs_topk.py
+Model: /data/run01/scxj889/models/Qwen2.5-1.5B-Instruct
+Qwen dependency overlay: /data/run01/scxj889/qwen_pydeps
+Input log: results/Replica/office0/ActiveSem/run_fake_llm_full_night_20260526_140049/splatam/llm_logs/planner_semantic_candidates.jsonl
+Output log: results/Replica/office0/ActiveSem/run_fake_llm_full_night_20260526_140049/splatam/llm_logs/qwen_offline_rerank_topk_results.jsonl
+Summary: results/Replica/office0/ActiveSem/run_fake_llm_full_night_20260526_140049/splatam/llm_logs/qwen_offline_rerank_topk_summary.txt
+
+Purpose:
+Run offline Qwen reranking on real ActiveSGM planner candidate logs.
+Each decision uses Top-K candidates ranked by weighted_score/explore_ig, while always including the original ActiveSGM-selected candidate.
+
+Status:
+COMPLETED, ExitCode 0:0, Elapsed 00:02:56.
+
+Configuration:
+TOP_K = 12
+Model loaded in float32 for generation stability.
+Output format required valid JSON with selected_candidate_id and reason.
+
+Results:
+total_decisions: 36
+same_as_original: 6
+changed_decisions: 30
+invalid_outputs: 0
+fallback_count: 0
+exception_count: 0
+same_ratio: 0.1667
+changed_ratio: 0.8333
+
+Conclusion:
+Qwen successfully produced valid JSON decisions for all 36 real planner records.
+No invalid outputs, no fallback, and no runtime exceptions occurred.
+Qwen selected a different candidate from the original ActiveSGM planner in 30 / 36 decisions.
+This verifies that Qwen can perform offline candidate reranking on real ActiveSGM decision logs.

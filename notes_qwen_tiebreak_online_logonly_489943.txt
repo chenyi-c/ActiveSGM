@@ -1,0 +1,51 @@
+Qwen Top-3 Tie-Break Online Log-Only Run
+========================================
+
+JobID: 489943
+State: COMPLETED
+ExitCode: 0:0
+Elapsed: 02:37:28
+
+Branch:
+feature_qwen25_15b_planner_v1
+
+Mode:
+ACTIVE_SGM_LLM_MODE=qwen_tiebreak_top3_distance_strict
+
+Result directory:
+results/Replica/office0/ActiveSem/run_qwen_tiebreak_logonly_20260529_192548
+
+Purpose:
+Run ActiveSGM with online Qwen Top-3 Tie-Break Distance-Strict reranker in log-only mode.
+Qwen is allowed to produce recommendations and guarded decisions, but ActiveSGM still uses original_next_visit as final_next_visit.
+
+Configuration:
+QWEN_PLANNER_DTYPE=float32
+QWEN_PLANNER_TOP_N=3
+QWEN_PLANNER_TIE_GAP=0.10
+QWEN_PLANNER_MIN_WEIGHT_KEEP=0.90
+QWEN_PLANNER_MIN_EXPLORE_KEEP=0.80
+QWEN_PLANNER_MAX_DISTANCE_INCREASE=0.0
+QWEN_PLANNER_MAX_NEW_TOKENS=96
+
+Final metrics:
+Final Average ATE RMSE: 122.69 cm
+Average PSNR: 27.75
+Average Depth RMSE: 0.53 cm
+Average Depth L1: 0.53 cm
+Average MS-SSIM: 0.974
+Average LPIPS: 0.092
+semantic eval frames: 0 / dataset 2000
+
+Online LLM log statistics:
+planner decision records: 36
+qwen_called: 21
+tie_cases: 21
+guard_accept_qwen: 5
+final_changed: 0
+
+Conclusion:
+The online log-only Qwen integration completed a full ActiveSGM run without crashing.
+Qwen was loaded and called online during real planner decisions.
+The guarded Qwen policy accepted 5 suggested changes, but final_next_visit remained equal to original_next_visit for all 36 records.
+This validates that the online Qwen reranker can be integrated safely while preserving the original planner trajectory.

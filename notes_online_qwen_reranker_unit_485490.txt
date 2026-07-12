@@ -1,0 +1,36 @@
+Online Qwen Reranker Unit Test
+==============================
+
+JobID: 485490
+State: COMPLETED
+ExitCode: 0:0
+Elapsed: 00:00:57
+
+Purpose:
+Validate the online Qwen Top-3 Tie-Break Distance-Strict reranker entry point before running ActiveSGM online log-only.
+
+Test:
+- Loaded Qwen2.5-1.5B-Instruct from local model path.
+- Called fake_llm_rerank with ACTIVE_SGM_LLM_MODE=qwen_tiebreak_top3_distance_strict.
+- Used a synthetic 3-candidate tie case.
+- Verified required fields:
+  selected_candidate_id
+  guarded_final_id
+  guard_accept_qwen
+  qwen_called
+  tie_case
+  guard_metrics
+
+Result:
+QWEN RERANKER UNIT TEST PASSED.
+
+Observed output:
+- mode: qwen_tiebreak_top3_distance_strict
+- qwen_called: True
+- tie_case: True
+- selected_candidate_id: 0
+- guarded_final_id: 0
+- top_ids: [0, 1, 2]
+
+Conclusion:
+The online Qwen reranker function can load the model, process a Top-3 candidate list, return structured output, and preserve the log-only interface.

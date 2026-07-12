@@ -20,7 +20,7 @@ class ExplorationMap:
         self.sim2slam = transform.to(self.device) if transform is not None else torch.eye(4, device=device)
         self.slam2sim = torch.inverse(self.sim2slam)
         self.occupancy_grid, self.origin = self.create_occupancy_grid() # self.origin in Sim Space
-        self.gs_z_levels = gs_z_levels 
+        self.gs_z_levels = gs_z_levels
         self.update_prev_free_voxels(
             use_xyz_filter=use_xyz_filter, xy_sampling_step=xy_sampling_step, gs_z_levels=gs_z_levels
             )
@@ -40,7 +40,7 @@ class ExplorationMap:
 
         # Create an empty occupancy grid initialized to 0 (unoccupied)
         occupancy_grid = torch.zeros(*grid_dimensions, dtype=torch.float32, device=self.device, requires_grad=False)
-        
+
         # Return the occupancy grid and the origin (minimum bound)
         return occupancy_grid, min_bound
 
@@ -53,8 +53,8 @@ class ExplorationMap:
         """
         self.occupancy_grid[indices] = 1.0
 
-    def get_world_coordinates_from_grid(self, 
-                                        value: float = None, 
+    def get_world_coordinates_from_grid(self,
+                                        value: float = None,
                                         in_slam_world: bool = False
                                         ) -> torch.Tensor:
         """
@@ -70,25 +70,25 @@ class ExplorationMap:
             indices = torch.nonzero(self.occupancy_grid, as_tuple=False)
         else:
             indices = torch.nonzero(self.occupancy_grid == value, as_tuple=False)
-        
+
         # Convert voxel indices to world coordinates
         world_coords_sim = self.origin + indices * self.voxel_size
         N = world_coords_sim.shape[0]
         homogeneous_coords = torch.cat((world_coords_sim, torch.ones(N, 1, device=self.device)), dim=1)
-        world_coords = torch.mm(homogeneous_coords, self.sim2slam.T)[:, :3] if in_slam_world else homogeneous_coords[:, :3] 
+        world_coords = torch.mm(homogeneous_coords, self.sim2slam.T)[:, :3] if in_slam_world else homogeneous_coords[:, :3]
         return world_coords
 
     def transform_xyz_to_vxl(self, xyz: torch.Tensor):
         """
-    
+
         Args:
             xyz: [N,3], XYZ in Simulator coordinate system
-    
+
         Returns:
             vxl: [N,3], voxel indices in voxel space
-    
+
         Attributes:
-            
+
         """
         return (xyz - self.origin) / self.voxel_size
 
@@ -122,14 +122,7 @@ class ExplorationMap:
         return min_distances
 
     @torch.no_grad()
-    def find_free_indices(
-        self,
-        grid: torch.Tensor,
-        query_points: torch.Tensor,
-        dist_thre: float = 0.5,
-        batch_size: int = 10000,
-        occupied_batch_size: int = 2048,
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    def find_free_indices(self, grid: torch.Tensor, query_points: torch.Tensor, dist_thre: float = 0.5, batch_size: int = 10000) -> Tuple[torch.Tensor, torch.Tensor]:
         """
         Finds free region indices by computing the closest occupied voxel to each point in a tensor of query points in a 3D occupancy grid,
         along with the distance to each closest occupied voxel.
@@ -138,8 +131,6 @@ class ExplorationMap:
             grid (torch.Tensor): A 3D occupancy grid where occupied voxels are marked by 1, and free space by 0 or -1.
             query_points (torch.Tensor): A tensor of shape (M, 3), where each row represents a query point (x, y, z).
             dist_thre (float): distance from the surface threshold
-            batch_size (int): query points chunk size
-            occupied_batch_size (int): occupied voxel chunk size
 
         Returns:
             Tuple[torch.Tensor, torch.Tensor]: A tuple containing:
@@ -153,43 +144,25 @@ class ExplorationMap:
         if occupied_voxel_coords.size(0) == 0:
             return query_points, query_points.new_empty((0, 3))
 
-        ### Step 2: Compute min distances with two-level chunking to avoid OOM ###
-        if query_points.numel() == 0:
-            return query_points, query_points.new_empty((0, 3))
+        ### Step 2: Expand query points and occupied voxel coordinates for broadcasting ###
+        query_points_exp = query_points.unsqueeze(1).float()  ### Shape (M, 1, 3)
+        occupied_voxel_coords_exp = occupied_voxel_coords.unsqueeze(0)  ### Shape (1, num_occupied, 3)
 
-        query_points_f = query_points.float()
-        occupied_voxel_coords_f = occupied_voxel_coords.float()
-        num_query = query_points_f.shape[0]
-        num_occupied = occupied_voxel_coords_f.shape[0]
+        ### Step 3: Calculate squared Euclidean distances between each query point and each occupied voxel ###
+        min_distances = []
+        # batch_size = 10000
+        num_repeat = query_points.shape[0] // batch_size
+        num_repeat = num_repeat + 1 if num_repeat * batch_size < query_points.shape[0] else num_repeat
+        if num_repeat > 0:
+            for i in range(num_repeat):
+                dist = torch.norm(query_points_exp[batch_size*i:batch_size*(i+1)] - occupied_voxel_coords_exp, dim=2)
+                min_distances.append(dist.min(dim=1)[0])
+            min_distances = torch.cat(min_distances, dim=0)
+        else:
+            distances = torch.norm(query_points_exp - occupied_voxel_coords_exp, dim=2)  ### Shape (M, num_occupied)
 
-        min_distances = torch.full(
-            (num_query,),
-            float("inf"),
-            device=query_points.device,
-            dtype=query_points_f.dtype,
-        )
-
-        q_bs = max(int(batch_size), 1)
-        o_bs = max(int(occupied_batch_size), 1)
-        for q_start in range(0, num_query, q_bs):
-            q_end = min(q_start + q_bs, num_query)
-            q_chunk = query_points_f[q_start:q_end]
-            q_min = torch.full(
-                (q_chunk.shape[0],),
-                float("inf"),
-                device=q_chunk.device,
-                dtype=q_chunk.dtype,
-            )
-
-            for o_start in range(0, num_occupied, o_bs):
-                o_end = min(o_start + o_bs, num_occupied)
-                o_chunk = occupied_voxel_coords_f[o_start:o_end]
-
-                # Keep temporary distance matrix bounded by q_bs * o_bs.
-                dist = torch.cdist(q_chunk, o_chunk, p=2)
-                q_min = torch.minimum(q_min, dist.min(dim=1).values)
-
-            min_distances[q_start:q_end] = q_min
+            ### Step 4: Find the minimum distance and the corresponding nearest occupied voxel for each query point ###
+            min_distances, _ = distances.min(dim=1)  ### Shape (M,)
 
         ### Step 5: find the indices for truncated free region and neglected free regions ###
         valid_free_indices_mask = (min_distances * self.voxel_size) > dist_thre
@@ -198,13 +171,12 @@ class ExplorationMap:
         return truncated_free_indices, neglected_free_indices
 
     @torch.no_grad()
-    def update_from_depth_map(self, 
+    def update_from_depth_map(self,
                               depth_map : torch.Tensor,
                               intrinsics: torch.Tensor,
                               extrinsics: torch.Tensor,
                               surface_dist_thre: float,
-                              find_free_indices_bs: int = 10000,
-                              find_free_indices_occ_bs: int = 2048,
+                              find_free_indices_bs: int = 10000
                               ) -> None:
         """
         Update the occupancy grid from a depth map, marking free and occupied space.
@@ -221,10 +193,10 @@ class ExplorationMap:
         grid_indices = torch.stack([x, y, z], dim=-1).reshape(-1, 3)
         unexplored_mask = self.occupancy_grid.flatten() == 0
         grid_indices = grid_indices[unexplored_mask]
-        
+
         # Convert grid indices to world coordinates
         world_coords_sim = self.origin + grid_indices * self.voxel_size
-        
+
         # Transform world coordinates to camera coordinates
         N = world_coords_sim.shape[0]
         homogeneous_coords_sim = torch.cat((world_coords_sim, torch.ones(N, 1, device=self.device)), dim=1)
@@ -251,13 +223,7 @@ class ExplorationMap:
         occupied_mask = (depth_map_values - depth).abs() < self.voxel_size
 
         free_mask = (depth_map_values - depth) > surface_dist_thre  # becoz SplaTAM doesn't update when the camera is close to a surface, keep free region away 5 voxels from the surface
-        free_indices, neglected_free_indices = self.find_free_indices(
-            self.occupancy_grid,
-            grid_indices[free_mask],
-            dist_thre=surface_dist_thre,
-            batch_size=find_free_indices_bs,
-            occupied_batch_size=find_free_indices_occ_bs,
-        )
+        free_indices, neglected_free_indices = self.find_free_indices(self.occupancy_grid, grid_indices[free_mask], dist_thre=surface_dist_thre, batch_size=find_free_indices_bs)
 
         # Mark free voxels
         # new_free_mask = self.occupancy_grid[free_indices[:, 0], free_indices[:, 1], free_indices[:, 2]] != -1
@@ -268,13 +234,13 @@ class ExplorationMap:
         # Mark occupied voxels
         occupied_indices = grid_indices[occupied_mask]
         self.occupancy_grid[occupied_indices[:, 0], occupied_indices[:, 1], occupied_indices[:, 2]] = 1.0
-    
+
     def update_prev_free_voxels(self, use_xyz_filter: bool = True, xy_sampling_step: float = 1.0, gs_z_levels = None):
         """ update last stored free grid
-        
+
         Attributes:
             prev_free_voxles: [N, 3]. indices of free voxels
-            
+
         """
         self.prev_free_voxels = self.get_free_voxels(use_xyz_filter, xy_sampling_step, gs_z_levels)
 
@@ -283,7 +249,7 @@ class ExplorationMap:
 
         Args:
             use_xyz_filter: use XYZ location filter
-    
+
         Returns:
             new_free_voxels: [N, 3]. indices of free voxels
         """
@@ -293,17 +259,17 @@ class ExplorationMap:
         # Flatten each row into a single unique value (row-wise hashing)
         prev_flat = prev_free_voxels.view(-1, 1, 3)
         new_flat = new_free_voxels.view(1, -1, 3)
-        
+
         # Find elements in new_free_voxels that don't match any in prev_free_voxels
         mask = (prev_flat == new_flat).all(dim=-1).any(dim=0)
         unique_new_voxels = new_free_voxels[~mask]
 
         return unique_new_voxels
         # return self._new_free_voxels
-    
+
     def get_free_voxels(self, use_xyz_filter: bool = True, xy_sampling_step: float = 1.0, gs_z_levels = None) -> torch.Tensor:
         """ get free voxels in the global map
-        
+
         Args:
             use_xyz_filter: use XYZ location filter
             xy_sampling_step: XY sampling step unit(meter)
@@ -337,10 +303,10 @@ class ExplorationMap:
         # Convert world_coords to homogeneous coordinates (N, 4)
         N = world_coords.shape[0]
         homogeneous_coords = torch.cat((world_coords, torch.ones(N, 1, device=world_coords.device)), dim=1)
-        
+
         # Apply the extrinsic transformation to obtain camera coordinates
         camera_coords = torch.mm(homogeneous_coords, camera_extrinsics[:3, :].T)
-        
+
         return camera_coords[:, :3]
 
     def visualize(self, time_idx: int = 0, in_slam_world: bool = False):

@@ -1,0 +1,75 @@
+Qwen Global-Local Log-Only Inspection
+=====================================
+
+Source run:
+JobID 535859
+Mode: qwen_global_local_logonly
+Result directory:
+results/Replica/office0/ActiveSem/run_qwen_global_local_logonly_20260608_120328
+
+Purpose:
+Inspect qwen_called rows from the first global-local log-only run.
+
+Main finding:
+Global-local prompt made Qwen more conservative, but the structured decision fields are not always logically consistent.
+
+Key statistics:
+records: 35
+qwen_called: 23
+final_changed: 0
+should_change_original: 1
+global_local_would_accept: 0
+
+High-risk rows:
+Most high-risk rows are reasonable because they have high score_drop, negative distance_saving, or weak stable_efficiency_ratio.
+
+Important problematic case:
+step=90
+original=35
+selected=12
+alignment=high
+trajectory_risk=high
+decision_confidence=high
+should_change_original=True
+score_drop=0.4268
+distance_saving=-0.8284
+stable_eff_ratio=0.4780
+
+Interpretation:
+This is internally inconsistent.
+Qwen selected a clearly weak candidate and marked should_change_original=True, while its reason says the candidate is high risk and the original choice is safer.
+
+Interesting borderline case:
+step=178
+original=8
+selected=14
+trajectory_risk=low
+decision_confidence=high
+should_change_original=False
+score_drop=0.0907
+distance_saving=2.0000
+stable_eff_ratio=2.4258
+
+Interpretation:
+This candidate is locally strong, but it narrowly fails the current score_drop threshold of 0.09.
+It may be useful for future analysis with a slightly relaxed threshold such as 0.095, but it should not be applied yet.
+
+Reason inconsistency case:
+step=533
+original=19
+selected=10
+score_drop=0.0919
+distance_saving=0.2837
+stable_eff_ratio=0.8878
+
+Qwen reason contains numerical inconsistency, describing the candidate as if it has better distance_saving and stable efficiency than the metrics show.
+
+Conclusion:
+Global-local v1 is safe in log-only mode and useful for risk-aware analysis.
+However, it is too conservative and has internal consistency issues.
+It should not be used for apply.
+Next version should enforce:
+- if trajectory_risk is high, should_change_original must be false.
+- if selected candidate fails deterministic metrics, should_change_original must be false.
+- if no candidate is clearly safe, selected_candidate_id should be the original planner choice.
+- reason should not be used as a decision signal.

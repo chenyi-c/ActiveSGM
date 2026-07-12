@@ -3,6 +3,7 @@ import cv2
 import torch
 import torch.nn.functional as F
 import numpy as np
+from torch_sparse.tensor import SparseTensor
 
 from third_parties.splatam.utils.slam_helpers import (
 transformed_params2rendervar,
@@ -66,6 +67,8 @@ def create_differentiable_sparse_tensor(dense_tensor, topk_indices, dense_shape)
         topk_values,
         size=dense_shape,
     )
+
+    sparse_tensor = SparseTensor.from_torch_sparse_coo_tensor(sparse_tensor)
 
     return sparse_tensor
 def get_pointcloud_with_seman(color, depth, seman, intrinsics, w2c, transform_pts=True,
@@ -164,21 +167,14 @@ def initialize_params_with_seman(init_pt_cld, num_frames, mean3_sq_dist, gaussia
     dense_shape = params['semantic_logits'].shape
     seman_sparse = create_differentiable_sparse_tensor(params['semantic_logits'], topk_indices, dense_shape)
 
-    # Extract sparse tensor indices and values
-    sparse_indices = seman_sparse.coalesce().indices()
-    sparse_values = seman_sparse.coalesce().values()
-
-    # Reshape to get column indices and values
-    col_indices = sparse_indices[1].reshape(dense_shape[0], TOPK)
-    values = sparse_values.reshape(dense_shape[0], TOPK)
-
     for k, v in params.items():
         # Check if value is already a torch tensor
         if not isinstance(v, torch.Tensor):
             v = torch.tensor(v)
 
         if k in ['semantic_logits']:
-            params[k] = torch.nn.Parameter(values.cuda().float().contiguous().requires_grad_(True))
+            sparse_values = seman_sparse.coo()[2].reshape(dense_shape[0],TOPK)
+            params[k] = torch.nn.Parameter(sparse_values.cuda().float().contiguous().requires_grad_(True))
         else:
             params[k] = torch.nn.Parameter(v.cuda().float().contiguous().requires_grad_(True))
 
@@ -186,7 +182,7 @@ def initialize_params_with_seman(init_pt_cld, num_frames, mean3_sq_dist, gaussia
                  'means2D_gradient_accum': torch.zeros(params['means3D'].shape[0]).cuda().float(),
                  'denom': torch.zeros(params['means3D'].shape[0]).cuda().float(),
                  'timestep': torch.zeros(params['means3D'].shape[0]).cuda().float(),
-                 'seman_cls_ids': col_indices,} # col index
+                 'seman_cls_ids': seman_sparse.coo()[1].reshape(dense_shape[0],TOPK),} # col index
     return params, variables
 
 def initialize_first_timestep(dataset, seman, num_frames, scene_radius_depth_ratio,
@@ -266,22 +262,17 @@ def initialize_new_params_with_seman(new_pt_cld, mean3_sq_dist, gaussian_distrib
     dense_shape = params['semantic_logits'].shape
     seman_sparse = create_differentiable_sparse_tensor(params['semantic_logits'], topk_indices, dense_shape)
 
-    # Extract sparse tensor indices and values
-    sparse_indices = seman_sparse.coalesce().indices()
-    sparse_values = seman_sparse.coalesce().values()
-    col_indices = sparse_indices[1].reshape(dense_shape[0], TOPK)
-    values = sparse_values.reshape(dense_shape[0], TOPK)
-
     for k, v in params.items():
         # Check if value is already a torch tensor
         if k in ['semantic_logits']:
-            params[k] = torch.nn.Parameter(values.float().contiguous().requires_grad_(True))
+            sparse_values = seman_sparse.coo()[2].reshape(dense_shape[0], TOPK)
+            params[k] = torch.nn.Parameter(sparse_values.float().contiguous().requires_grad_(True))
         else:
             if not isinstance(v, torch.Tensor):
                 v = torch.tensor(v)
             params[k] = torch.nn.Parameter(v.cuda().float().contiguous().requires_grad_(True))
 
-    variables = {'seman_cls_ids': col_indices, }
+    variables = {'seman_cls_ids': seman_sparse.coo()[1].reshape(dense_shape[0],TOPK), }
 
     return params, variables
 
@@ -340,13 +331,10 @@ def transformed_params2semrendervar(params, variables, transformed_gaussians, se
     N,C = params['log_scales'].shape[0], variables['n_cls']
     topk = variables['seman_cls_ids'].shape[-1]
     row_index = torch.arange(N).repeat_interleave(topk).to(variables['seman_cls_ids'].device)
-    col_index = variables['seman_cls_ids'].view(-1)
-    values = params['semantic_logits'].view(-1)
-
-    # Create sparse tensor using PyTorch's sparse_coo_tensor
-    indices = torch.stack([row_index, col_index])
-    seman_sparse = torch.sparse_coo_tensor(indices, values, size=(N, C))
-    seman_dense = seman_sparse.to_dense()
+    seman_sparse = SparseTensor(row=row_index.view(-1),
+                                col=variables['seman_cls_ids'].view(-1),
+                                value=params['semantic_logits'].view(-1),
+                                sparse_sizes=(N, C))
 
     if params['log_scales'].shape[1] == 1:
         log_scales = torch.tile(params['log_scales'][seen], (1, 3))
@@ -356,7 +344,7 @@ def transformed_params2semrendervar(params, variables, transformed_gaussians, se
     # Initialize Render Variables
     rendervar = {
         'means3D': transformed_gaussians['means3D'][seen],
-        'colors_precomp': seman_dense[seen],
+        'colors_precomp': seman_sparse.to_dense()[seen],
         'rotations': F.normalize(transformed_gaussians['unnorm_rotations'][seen]),
         'opacities': torch.sigmoid(params['logit_opacities'][seen]),
         'scales': torch.exp(log_scales),
@@ -743,5 +731,3 @@ def densify(params, variables, optimizer, iter, densify_dict):
             params = update_params_and_optimizer(new_params, params, optimizer)
 
     return params, variables
-
-
